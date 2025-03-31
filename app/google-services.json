@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "884484786610",
+    "project_id": "mypokedex-espinozahector",
+    "storage_bucket": "mypokedex-espinozahector.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:884484786610:android:90a533655441d80205bcab",
+        "android_client_info": {
+          "package_name": "espinoza.hector.mypokedex_espinozahector"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8kwPBtySqQu11fzmahhY-nIf9OOZ0X20"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
