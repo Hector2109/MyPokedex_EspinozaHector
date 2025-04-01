@@ -2,4 +2,9 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="pokedex_red">#C62828</color>
+    <color name="pokemon_yellow">#FFCB05</color>
+    <color name="pokemon_blue">#1976D2</color>
+    <color name="darker_gray">#616161</color>
+    <color name="dark_gray">#9E9E9E</color>
 </resources>
