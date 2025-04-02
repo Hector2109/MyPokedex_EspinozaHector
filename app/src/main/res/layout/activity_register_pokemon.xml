@@ -13,7 +13,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Add Pokémon"
+        android:text="Add Pokemon"
         android:textSize="25sp"
         android:textStyle="bold"
         android:textColor="@color/white"
@@ -27,7 +27,7 @@
         android:layout_marginTop="30dp"
         android:background="@drawable/input_background"
         android:padding="12dp"
-        android:hint="Pokémon Name"
+        android:hint="Pokemon Name"
         android:textColor="@color/black"
         android:textColorHint="@color/dark_gray"
         android:inputType="text"/>
@@ -39,7 +39,7 @@
         android:layout_marginTop="20dp"
         android:background="@drawable/input_background"
         android:padding="12dp"
-        android:hint="Pokédex Number"
+        android:hint="Pokedex Number"
         android:textColor="@color/black"
         android:textColorHint="@color/dark_gray"
         android:inputType="number"/>

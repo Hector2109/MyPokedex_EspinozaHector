@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.AsyncTask
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -15,6 +16,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.database.FirebaseDatabase
 import org.json.JSONObject
 import java.io.DataOutputStream
@@ -25,115 +29,112 @@ import java.net.URL
 
 class RegisterPokemonActivity : AppCompatActivity() {
 
-    private val REQUEST_IMAGE_GET = 1
-    private val CLOUD_NAME = "dtejuoctt"
-    private val UPLOAD_PRESET = "pokemon-upload"
+    val REQUEST_IMAGE_GET = 1
+    val CLOUD_NAME = "dlcv1adru"
+    val UPLOAD_PRESET = "pokemon-upload"
     private var imageUri: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContentView(R.layout.activity_register_pokemon)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
 
-        val name: EditText = findViewById(R.id.pokemonName)
-        val pNumber: EditText = findViewById(R.id.pokemonNumber)
-        val select: Button = findViewById(R.id.selectImage)
-        val save: Button = findViewById(R.id.savePokemon)
+        initCloudinary()
+
+        val name: EditText = findViewById(R.id.pokemonName) as EditText
+        val number: EditText = findViewById(R.id.pokemonNumber) as EditText
+        val select: Button = findViewById(R.id.selectImage) as Button
+        val save: Button = findViewById(R.id.savePokemon) as Button
 
         select.setOnClickListener {
-            val intent = Intent(Intent.ACTION_GET_CONTENT)
+            val intent: Intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "image/*"
             startActivityForResult(intent, REQUEST_IMAGE_GET)
         }
 
         save.setOnClickListener {
-            val pokemonName = name.text.toString().trim()
-            val pokemonNumber = pNumber.text.toString().trim()
+            val nombre = name.text.toString()
+            val numero = number.text.toString()
 
-            if (pokemonName.isEmpty() || pokemonNumber.isEmpty() || imageUri == null) {
-                Toast.makeText(this, "Complete todos los campos", Toast.LENGTH_SHORT).show()
+            if (nombre.isNotEmpty() && numero.isNotEmpty()) {
+                savePokemon { imageUrl ->
+                    savePokemonToDatabase(nombre, numero, imageUrl)
+                }
             } else {
-                uploadImageToCloudinary(pokemonName, pokemonNumber)
+                Toast.makeText(this, "Por favor, complete todos los campos", Toast.LENGTH_SHORT).show()
             }
         }
+
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_IMAGE_GET && resultCode == Activity.RESULT_OK) {
-            imageUri = data?.data
-            imageUri?.let { changeImage(it) }
+        if (requestCode == REQUEST_IMAGE_GET && resultCode == Activity.RESULT_OK){
+            val fullImageUri: Uri? = data?.data
+
+            if (fullImageUri != null){
+                changeImage(fullImageUri)
+            }
         }
     }
 
-    private fun changeImage(uri: Uri) {
-        val thumbnail: ImageView = findViewById(R.id.thumbnail)
-        thumbnail.setImageURI(uri)
+    fun changeImage(uri: Uri){
+        val thumbnail: ImageView = findViewById(R.id.thumbnail) as ImageView
+        imageUri = uri
+        try {
+            thumbnail.setImageURI(uri)
+        } catch (e: Exception){
+            e.printStackTrace()
+        }
     }
 
-    private fun uploadImageToCloudinary(name: String, number: String) {
-        Toast.makeText(this, "Subiendo imagen...", Toast.LENGTH_SHORT).show()
+    private fun initCloudinary () {
+        val config: MutableMap <String, String> = HashMap <String, String>()
+        config["cloud_name"] = CLOUD_NAME
+        MediaManager.init(this, config)
+    }
 
-        val filePath = getRealPathFromURI(imageUri!!)
-        val file = File(filePath)
-        val url = "https://api.cloudinary.com/v1_1/$CLOUD_NAME/image/upload"
+    fun savePokemon(callback: (String) -> Unit){
+        var url: String = ""
 
-        Thread {
-            try {
-                val boundary = "Boundary-" + System.currentTimeMillis()
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
-
-                val outputStream = DataOutputStream(connection.outputStream)
-                outputStream.writeBytes("--$boundary\r\n")
-                outputStream.writeBytes("Content-Disposition: form-data; name=\"upload_preset\"\r\n\r\n")
-                outputStream.writeBytes("$UPLOAD_PRESET\r\n")
-
-                outputStream.writeBytes("--$boundary\r\n")
-                outputStream.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"${file.name}\"\r\n")
-                outputStream.writeBytes("Content-Type: image/jpeg\r\n\r\n")
-
-                val inputStream = FileInputStream(file)
-                val buffer = ByteArray(4096)
-                var bytesRead: Int
-
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    outputStream.write(buffer, 0, bytesRead)
+        if (imageUri != null){
+            MediaManager.get().upload(imageUri).unsigned(UPLOAD_PRESET).callback(object: UploadCallback {
+                override fun onStart(requesId: String) {
+                    Log.d("Cloudinary Quickstart", "Upload start")
                 }
-
-                outputStream.writeBytes("\r\n--$boundary--\r\n")
-                outputStream.flush()
-                outputStream.close()
-                inputStream.close()
-
-                val responseCode = connection.responseCode
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    val jsonObject = JSONObject(response)
-                    val imageUrl = jsonObject.getString("secure_url")
-
-                    runOnUiThread {
-                        savePokemonToDatabase(name, number, imageUrl)
-                    }
-                } else {
-                    runOnUiThread {
-                        Toast.makeText(applicationContext, "Error al subir imagen", Toast.LENGTH_SHORT).show()
-                    }
+                override fun onProgress (requesId: String, bytes: Long, totalBytes: Long) {
+                    Log.d("Cloudinary Quickstart", "Upload progress")
                 }
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(applicationContext, "Error de red", Toast.LENGTH_SHORT).show()
+                override fun onSuccess (requestId: String, resultData: Map<*, *>){
+                    Log.d("Cloudinary Quickstart", "Upload success")
+                    url = resultData ["secure_url"] as String?:""
+                    callback(url)
                 }
-            }
-        }.start()
+                override fun onError (requesId: String, error: ErrorInfo) {
+                    Log.d("Cloudinary Quickstart", "Upload failed")
+                }
+                override fun onReschedule (requesId: String, error: ErrorInfo){
+
+                }
+            }).dispatch()
+        }
+
     }
 
     private fun savePokemonToDatabase(name: String, number: String, imageUrl: String) {
         val databaseRef = FirebaseDatabase.getInstance().reference.child("Pokemns").child(number)
-        val pokemon = Pokemon(name, number.toInt(), imageUrl)
+        val pokemon = Pokemon(name,
+            number.toInt(),
+            imageUrl)
 
         databaseRef.setValue(pokemon).addOnSuccessListener {
             Toast.makeText(this, "Pokémon guardado", Toast.LENGTH_SHORT).show()
@@ -143,15 +144,5 @@ class RegisterPokemonActivity : AppCompatActivity() {
         }
     }
 
-    private fun getRealPathFromURI(uri: Uri): String {
-        var result: String? = null
-        val cursor = contentResolver.query(uri, null, null, null, null)
-        if (cursor != null) {
-            cursor.moveToFirst()
-            val idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA)
-            result = cursor.getString(idx)
-            cursor.close()
-        }
-        return result ?: uri.path!!
-    }
+
 }
